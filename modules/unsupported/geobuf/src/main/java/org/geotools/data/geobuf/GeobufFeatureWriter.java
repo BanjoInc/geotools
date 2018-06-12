@@ -29,6 +29,7 @@ import org.geotools.data.store.ContentState;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import jo.ban.proto.GeoBufProtos;
 
 public class GeobufFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleFeature> {
 
@@ -36,9 +37,9 @@ public class GeobufFeatureWriter implements FeatureWriter<SimpleFeatureType, Sim
 
     private File temp;
 
-    private Geobuf.Data.Builder dataBuilder;
+    private GeoBufProtos.Data.Builder dataBuilder;
 
-    private Geobuf.Data.FeatureCollection.Builder featureCollectionBuilder;
+    private GeoBufProtos.Data.FeatureCollection.Builder featureCollectionBuilder;
 
     private GeobufFeatureReader delegate;
 
@@ -64,11 +65,11 @@ public class GeobufFeatureWriter implements FeatureWriter<SimpleFeatureType, Sim
         }
         File directory = file.getParentFile();
         this.temp = File.createTempFile(typeName + System.currentTimeMillis(), "geobuf", directory);
-        this.dataBuilder = Geobuf.Data.newBuilder();
+        this.dataBuilder = GeoBufProtos.Data.newBuilder();
         GeobufFeatureType geobufFeatureType = new GeobufFeatureType();
         geobufFeatureType.encode(state.getFeatureType(), dataBuilder);
         dataBuilder.build().writeTo(new FileOutputStream(this.temp));
-        this.featureCollectionBuilder = Geobuf.Data.FeatureCollection.newBuilder();
+        this.featureCollectionBuilder = GeoBufProtos.Data.FeatureCollection.newBuilder();
         this.geobufFeature = new GeobufFeature(new GeobufGeometry(precision, dimension));
         this.delegate = new GeobufFeatureReader(state, query, precision, dimension);
     }
@@ -145,7 +146,7 @@ public class GeobufFeatureWriter implements FeatureWriter<SimpleFeatureType, Sim
             write();
         }
         dataBuilder.setFeatureCollection(featureCollectionBuilder.build());
-        Geobuf.Data data = dataBuilder.build();
+        GeoBufProtos.Data data = dataBuilder.build();
         data.writeTo(new FileOutputStream(temp));
         dataBuilder = null;
         if (delegate != null) {

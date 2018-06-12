@@ -17,6 +17,7 @@
 package org.geotools.data.geobuf;
 
 import com.vividsolutions.jts.geom.*;
+import jo.ban.proto.GeoBufProtos;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -64,46 +65,46 @@ public class GeobufGeometry {
     }
 
     public void encode(Geometry geometry, OutputStream out) throws IOException {
-        Geobuf.Data.Builder dataBuilder = Geobuf.Data.newBuilder();
+        GeoBufProtos.Data.Builder dataBuilder = GeoBufProtos.Data.newBuilder();
         dataBuilder.setDimensions(dimension);
         dataBuilder.setPrecision(precision);
-        Geobuf.Data.Geometry g = encode(geometry);
+        GeoBufProtos.Data.Geometry g = encode(geometry);
         dataBuilder.setGeometry(g);
         dataBuilder.build().writeTo(out);
     }
 
     public Geometry decode(InputStream in) throws IOException {
-        Geobuf.Data data = Geobuf.Data.parseFrom(in);
-        if (data.getDataTypeCase() != Geobuf.Data.DataTypeCase.GEOMETRY) {
+      GeoBufProtos.Data data = GeoBufProtos.Data.parseFrom(in);
+        if (data.getDataTypeCase() != GeoBufProtos.Data.DataTypeCase.GEOMETRY) {
             throw new IllegalArgumentException("Geobuf data type is not Geometry!");
         }
         return decode(data.getGeometry());
     }
 
-    protected Geobuf.Data.Geometry encode(Geometry geometry) {
-        Geobuf.Data.Geometry.Builder builder = Geobuf.Data.Geometry.newBuilder();
+    public GeoBufProtos.Data.Geometry encode(Geometry geometry) {
+      GeoBufProtos.Data.Geometry.Builder builder = GeoBufProtos.Data.Geometry.newBuilder();
         if (geometry instanceof Point) {
             Point point = (Point) geometry;
-            builder.setType(Geobuf.Data.Geometry.Type.POINT);
+            builder.setType(GeoBufProtos.Data.Geometry.Type.POINT);
             addCoords(builder, new Coordinate[] {point.getCoordinate()});
         } else if (geometry instanceof LineString) {
             LineString line = (LineString) geometry;
-            builder.setType(Geobuf.Data.Geometry.Type.LINESTRING);
+            builder.setType(GeoBufProtos.Data.Geometry.Type.LINESTRING);
             Coordinate[] coords = line.getCoordinates();
             addCoords(builder, coords);
         } else if (geometry instanceof Polygon) {
             Polygon polygon = (Polygon) geometry;
-            builder.setType(Geobuf.Data.Geometry.Type.POLYGON);
+            builder.setType(GeoBufProtos.Data.Geometry.Type.POLYGON);
             Coordinate[] coords = polygon.getCoordinates();
             addCoords(builder, coords);
         } else if (geometry instanceof MultiPoint) {
             MultiPoint multiPoint = (MultiPoint) geometry;
-            builder.setType(Geobuf.Data.Geometry.Type.MULTIPOINT);
+            builder.setType(GeoBufProtos.Data.Geometry.Type.MULTIPOINT);
             Coordinate[] coords = multiPoint.getCoordinates();
             addCoords(builder, coords);
         } else if (geometry instanceof MultiLineString) {
             MultiLineString multiLineString = (MultiLineString) geometry;
-            builder.setType(Geobuf.Data.Geometry.Type.MULTILINESTRING);
+            builder.setType(GeoBufProtos.Data.Geometry.Type.MULTILINESTRING);
             for (int i = 0; i < multiLineString.getNumGeometries(); i++) {
                 LineString line = (LineString) multiLineString.getGeometryN(i);
                 builder.addLengths(line.getCoordinates().length);
@@ -111,7 +112,7 @@ public class GeobufGeometry {
             }
         } else if (geometry instanceof MultiPolygon) {
             MultiPolygon multiPolygon = (MultiPolygon) geometry;
-            builder.setType(Geobuf.Data.Geometry.Type.MULTIPOLYGON);
+            builder.setType(GeoBufProtos.Data.Geometry.Type.MULTIPOLYGON);
             builder.addLengths(multiPolygon.getNumGeometries());
             for (int i = 0; i < multiPolygon.getNumGeometries(); i++) {
                 Polygon polygon = (Polygon) multiPolygon.getGeometryN(i);
@@ -126,17 +127,17 @@ public class GeobufGeometry {
             }
         } else if (geometry instanceof GeometryCollection) {
             GeometryCollection geometryCollection = (GeometryCollection) geometry;
-            builder.setType(Geobuf.Data.Geometry.Type.GEOMETRYCOLLECTION);
+            builder.setType(GeoBufProtos.Data.Geometry.Type.GEOMETRYCOLLECTION);
             for (int i = 0; i < geometryCollection.getNumGeometries(); i++) {
                 Geometry geom = geometryCollection.getGeometryN(i);
                 builder.addGeometries(encode(geom));
             }
         }
-        Geobuf.Data.Geometry geom = builder.build();
+        GeoBufProtos.Data.Geometry geom = builder.build();
         return geom;
     }
 
-    private void addCoords(Geobuf.Data.Geometry.Builder builder, Coordinate[] coords) {
+    private void addCoords(GeoBufProtos.Data.Geometry.Builder builder, Coordinate[] coords) {
         for (int i = 0; i < coords.length; i++) {
             Coordinate coord = coords[i];
             long x = Math.round(coord.x * maxNumberOfDecimalPlaces);
@@ -150,12 +151,12 @@ public class GeobufGeometry {
         }
     }
 
-    protected Geometry decode(Geobuf.Data.Geometry g) {
-        if (g.getType() == Geobuf.Data.Geometry.Type.POINT) {
+    public Geometry decode(GeoBufProtos.Data.Geometry g) {
+        if (g.getType() == GeoBufProtos.Data.Geometry.Type.POINT) {
             return geometryFactory.createPoint(getAllCoordinates(g)[0]);
-        } else if (g.getType() == Geobuf.Data.Geometry.Type.LINESTRING) {
+        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.LINESTRING) {
             return geometryFactory.createLineString(getAllCoordinates(g));
-        } else if (g.getType() == Geobuf.Data.Geometry.Type.POLYGON) {
+        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.POLYGON) {
             Coordinate[] coords = getAllCoordinates(g);
             if (!CoordinateArrays.isRing(coords)) {
                 Coordinate[] closedCoords = new Coordinate[coords.length + 1];
@@ -166,17 +167,17 @@ public class GeobufGeometry {
             LinearRing shell = geometryFactory.createLinearRing(coords);
             LinearRing[] holes = new LinearRing[0];
             return geometryFactory.createPolygon(shell, holes);
-        } else if (g.getType() == Geobuf.Data.Geometry.Type.MULTIPOINT) {
+        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.MULTIPOINT) {
             Coordinate[] coords = getAllCoordinates(g);
             return geometryFactory.createMultiPoint(coords);
-        } else if (g.getType() == Geobuf.Data.Geometry.Type.MULTILINESTRING) {
+        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.MULTILINESTRING) {
             List<Coordinate[]> listOfCoordinates = getCoordinates(g);
             LineString[] lines = new LineString[listOfCoordinates.size()];
             for (int i = 0; i < listOfCoordinates.size(); i++) {
                 lines[i] = geometryFactory.createLineString(listOfCoordinates.get(i));
             }
             return geometryFactory.createMultiLineString(lines);
-        } else if (g.getType() == Geobuf.Data.Geometry.Type.MULTIPOLYGON) {
+        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.MULTIPOLYGON) {
             int lengthPosition = 0;
             int numberOfPolygons = g.getLengths(lengthPosition);
             lengthPosition++;
@@ -209,7 +210,7 @@ public class GeobufGeometry {
                 }
             }
             return geometryFactory.createMultiPolygon(polygons);
-        } else if (g.getType() == Geobuf.Data.Geometry.Type.GEOMETRYCOLLECTION) {
+        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.GEOMETRYCOLLECTION) {
             List<Geometry> geoms = getGeometries(g);
             return geometryFactory.createGeometryCollection(geoms.toArray(new Geometry[] {}));
         } else {
@@ -217,13 +218,13 @@ public class GeobufGeometry {
         }
     }
 
-    protected List<Geometry> getGeometries(Geobuf.Data.Geometry g) {
+    protected List<Geometry> getGeometries(GeoBufProtos.Data.Geometry g) {
         List<Geometry> geometries = new ArrayList<Geometry>();
         getGeometries(geometries, g);
         return geometries;
     }
 
-    protected void getGeometries(List<Geometry> geometries, Geobuf.Data.Geometry g) {
+    protected void getGeometries(List<Geometry> geometries, GeoBufProtos.Data.Geometry g) {
         int count = g.getGeometriesCount();
         if (count < 2) {
             geometries.add(decode(g));
@@ -234,7 +235,7 @@ public class GeobufGeometry {
         }
     }
 
-    protected Coordinate[] getCoordinates(Geobuf.Data.Geometry g, int start, int end) {
+    protected Coordinate[] getCoordinates(GeoBufProtos.Data.Geometry g, int start, int end) {
         int numberOfCoords = (end - start) / dimension;
         Coordinate[] coords = new Coordinate[numberOfCoords];
         int coordinateCounter = 0;
@@ -262,7 +263,7 @@ public class GeobufGeometry {
         return coords;
     }
 
-    protected List<Coordinate[]> getCoordinates(Geobuf.Data.Geometry g) {
+    protected List<Coordinate[]> getCoordinates(GeoBufProtos.Data.Geometry g) {
         List<Coordinate[]> listOfCoordinates = new ArrayList<Coordinate[]>();
         int numberOfLengths = g.getLengthsCount();
         if (numberOfLengths == 0) {
@@ -281,7 +282,7 @@ public class GeobufGeometry {
         return listOfCoordinates;
     }
 
-    protected Coordinate[] getAllCoordinates(Geobuf.Data.Geometry g) {
+    protected Coordinate[] getAllCoordinates(GeoBufProtos.Data.Geometry g) {
         return getCoordinates(g, 0, g.getCoordsCount());
     }
 }

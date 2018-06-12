@@ -18,6 +18,7 @@ package org.geotools.data.geobuf;
 
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
+import jo.ban.proto.GeoBufProtos;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -48,7 +49,7 @@ public class GeobufFeatureCollection {
     }
 
     public SimpleFeatureCollection decode(InputStream in) throws IOException {
-        Geobuf.Data data = Geobuf.Data.parseFrom(in);
+        GeoBufProtos.Data data = GeoBufProtos.Data.parseFrom(in);
         return decode(data);
     }
 
@@ -57,7 +58,7 @@ public class GeobufFeatureCollection {
         encode(featureCollection).writeTo(out);
     }
 
-    protected SimpleFeatureCollection decode(Geobuf.Data data) throws IOException {
+    public SimpleFeatureCollection decode(GeoBufProtos.Data data) throws IOException {
         GeobufFeatureType geobufFeatureType =
                 new GeobufFeatureType(
                         geobufFeature.getGeobufGeometry().getPrecision(),
@@ -71,10 +72,10 @@ public class GeobufFeatureCollection {
         return memoryDataStore.getFeatureSource("features").getFeatures();
     }
 
-    protected Geobuf.Data.FeatureCollection encodeAsFeatureCollection(
+    protected GeoBufProtos.Data.FeatureCollection encodeAsFeatureCollection(
             SimpleFeatureCollection featureCollection) {
-        Geobuf.Data.FeatureCollection.Builder featureCollectionBuilder =
-                Geobuf.Data.FeatureCollection.newBuilder();
+      GeoBufProtos.Data.FeatureCollection.Builder featureCollectionBuilder =
+          GeoBufProtos.Data.FeatureCollection.newBuilder();
         SimpleFeatureIterator it = featureCollection.features();
         try {
             while (it.hasNext()) {
@@ -86,8 +87,8 @@ public class GeobufFeatureCollection {
         return featureCollectionBuilder.build();
     }
 
-    protected Geobuf.Data encode(SimpleFeatureCollection featureCollection) {
-        Geobuf.Data.Builder dataBuilder = Geobuf.Data.newBuilder();
+    public GeoBufProtos.Data encode(SimpleFeatureCollection featureCollection) {
+      GeoBufProtos.Data.Builder dataBuilder = GeoBufProtos.Data.newBuilder();
         for (AttributeDescriptor descriptor :
                 featureCollection.getSchema().getAttributeDescriptors()) {
             if (!(descriptor instanceof GeometryDescriptor)) {
@@ -97,17 +98,17 @@ public class GeobufFeatureCollection {
         dataBuilder.setDimensions(geobufFeature.getGeobufGeometry().getDimension());
         dataBuilder.setPrecision(geobufFeature.getGeobufGeometry().getPrecision());
         dataBuilder.setFeatureCollection(encodeAsFeatureCollection(featureCollection));
-        Geobuf.Data data = dataBuilder.build();
+        GeoBufProtos.Data data = dataBuilder.build();
         return data;
     }
 
     protected int countFeatures(InputStream in) throws IOException {
-        Geobuf.Data data = Geobuf.Data.parseFrom(in);
-        if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.GEOMETRY) {
+      GeoBufProtos.Data data = GeoBufProtos.Data.parseFrom(in);
+        if (data.getDataTypeCase() == GeoBufProtos.Data.DataTypeCase.GEOMETRY) {
             return 1;
-        } else if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.FEATURE) {
+        } else if (data.getDataTypeCase() == GeoBufProtos.Data.DataTypeCase.FEATURE) {
             return 1;
-        } else if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.FEATURE_COLLECTION) {
+        } else if (data.getDataTypeCase() == GeoBufProtos.Data.DataTypeCase.FEATURE_COLLECTION) {
             return data.getFeatureCollection().getFeaturesCount();
         } else {
             return -1;
@@ -115,18 +116,18 @@ public class GeobufFeatureCollection {
     }
 
     protected ReferencedEnvelope getBounds(InputStream in) throws IOException {
-        Geobuf.Data data = Geobuf.Data.parseFrom(in);
-        if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.GEOMETRY) {
+      GeoBufProtos.Data data = GeoBufProtos.Data.parseFrom(in);
+        if (data.getDataTypeCase() == GeoBufProtos.Data.DataTypeCase.GEOMETRY) {
             Geometry g = geobufFeature.getGeobufGeometry().decode(data.getGeometry());
             Envelope env = g.getEnvelopeInternal();
             return new ReferencedEnvelope(
                     env.getMinX(), env.getMaxX(), env.getMinY(), env.getMaxY(), null);
-        } else if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.FEATURE) {
+        } else if (data.getDataTypeCase() == GeoBufProtos.Data.DataTypeCase.FEATURE) {
             Geometry g = (Geometry) geobufFeature.decode(data).getDefaultGeometry();
             Envelope env = g.getEnvelopeInternal();
             return new ReferencedEnvelope(
                     env.getMinX(), env.getMaxX(), env.getMinY(), env.getMaxY(), null);
-        } else if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.FEATURE_COLLECTION) {
+        } else if (data.getDataTypeCase() == GeoBufProtos.Data.DataTypeCase.FEATURE_COLLECTION) {
             SimpleFeatureCollection fc = decode(data);
             return fc.getBounds();
         } else {

@@ -28,6 +28,7 @@ import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import jo.ban.proto.GeoBufProtos;
 
 public class GeobufFeatureReader implements FeatureReader<SimpleFeatureType, SimpleFeature> {
 
@@ -39,7 +40,7 @@ public class GeobufFeatureReader implements FeatureReader<SimpleFeatureType, Sim
 
     private FileInputStream in;
 
-    private Geobuf.Data data;
+    private GeoBufProtos.Data data;
 
     private GeobufGeometry geobufGeometry;
 
@@ -65,7 +66,7 @@ public class GeobufFeatureReader implements FeatureReader<SimpleFeatureType, Sim
             file = ((GeobufDataStore) dataStore).getFile();
         }
         this.in = new FileInputStream(file);
-        this.data = Geobuf.Data.parseFrom(in);
+        this.data = GeoBufProtos.Data.parseFrom(in);
     }
 
     @Override

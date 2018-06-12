@@ -1,0 +1,6 @@
+ext {
+    artifactory_context_url = "https://ins-aue1-artifactory-01.bmasked.info/artifactory"
+    artifactory_url = "https://ins-aue1-artifactory-01.bmasked.info/artifactory/gradle-dev-local"
+    artifactory_username = "USERNAME"
+    artifactory_password = "PASSWORD"
+}

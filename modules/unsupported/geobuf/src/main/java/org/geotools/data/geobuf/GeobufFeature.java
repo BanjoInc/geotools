@@ -17,6 +17,7 @@
 package org.geotools.data.geobuf;
 
 import com.vividsolutions.jts.geom.*;
+import jo.ban.proto.GeoBufProtos;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -47,7 +48,7 @@ public class GeobufFeature {
     }
 
     public void encode(SimpleFeature feature, OutputStream out) throws IOException {
-        Geobuf.Data.Builder dataBuilder = Geobuf.Data.newBuilder();
+      GeoBufProtos.Data.Builder dataBuilder = GeoBufProtos.Data.newBuilder();
         for (AttributeDescriptor descriptor : feature.getFeatureType().getAttributeDescriptors()) {
             if (!(descriptor instanceof GeometryDescriptor)) {
                 dataBuilder.addKeys(descriptor.getLocalName());
@@ -60,14 +61,13 @@ public class GeobufFeature {
     }
 
     public SimpleFeature decode(InputStream in) throws IOException {
-        Geobuf.Data data = Geobuf.Data.parseFrom(in);
+        GeoBufProtos.Data data = GeoBufProtos.Data.parseFrom(in);
         GeobufFeatureType geobufFeatureType = new GeobufFeatureType();
-        return decode(
-                data, new SimpleFeatureBuilder(geobufFeatureType.getFeatureType("features", data)));
+        return decode(data, new SimpleFeatureBuilder(geobufFeatureType.getFeatureType("features", data)));
     }
 
-    protected Geobuf.Data.Feature encode(SimpleFeature feature) {
-        Geobuf.Data.Feature.Builder featureBuilder = Geobuf.Data.Feature.newBuilder();
+    public GeoBufProtos.Data.Feature encode(SimpleFeature feature) {
+      GeoBufProtos.Data.Feature.Builder featureBuilder = GeoBufProtos.Data.Feature.newBuilder();
         int i = 0;
         for (AttributeDescriptor attributeDescriptor :
                 feature.getFeatureType().getAttributeDescriptors()) {
@@ -83,8 +83,8 @@ public class GeobufFeature {
         return featureBuilder.build();
     }
 
-    protected Geobuf.Data.Value encodeValue(AttributeDescriptor attributeDescriptor, Object value) {
-        Geobuf.Data.Value.Builder builder = Geobuf.Data.Value.newBuilder();
+    protected GeoBufProtos.Data.Value encodeValue(AttributeDescriptor attributeDescriptor, Object value) {
+      GeoBufProtos.Data.Value.Builder builder = GeoBufProtos.Data.Value.newBuilder();
         if (value instanceof String) {
             builder.setStringValue((String) value);
         } else if (value instanceof Integer) {
@@ -99,7 +99,7 @@ public class GeobufFeature {
         return builder.build();
     }
 
-    protected SimpleFeature decode(Geobuf.Data data) throws IOException {
+    public SimpleFeature decode(GeoBufProtos.Data data) throws IOException {
         GeobufFeatureType geobufFeatureType = new GeobufFeatureType();
         return decode(
                 data,
@@ -107,13 +107,13 @@ public class GeobufFeature {
                 new SimpleFeatureBuilder(geobufFeatureType.getFeatureType("features", data)));
     }
 
-    protected SimpleFeature decode(Geobuf.Data data, SimpleFeatureBuilder featureBuilder) {
+    protected SimpleFeature decode(GeoBufProtos.Data data, SimpleFeatureBuilder featureBuilder) {
         return decode(data, 0, featureBuilder);
     }
 
     protected SimpleFeature decode(
-            Geobuf.Data data, int index, SimpleFeatureBuilder featureBuilder) {
-        if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.GEOMETRY) {
+        GeoBufProtos.Data data, int index, SimpleFeatureBuilder featureBuilder) {
+        if (data.getDataTypeCase() == GeoBufProtos.Data.DataTypeCase.GEOMETRY) {
             if (index > 0) {
                 return null;
             }
@@ -121,7 +121,7 @@ public class GeobufFeature {
                     featureBuilder.getFeatureType().getGeometryDescriptor().getLocalName(),
                     geobufGeometry.decode(data.getGeometry()));
 
-        } else if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.FEATURE) {
+        } else if (data.getDataTypeCase() == GeoBufProtos.Data.DataTypeCase.FEATURE) {
             if (index > 0) {
                 return null;
             }
@@ -134,11 +134,11 @@ public class GeobufFeature {
                 Object value = getValue(data.getFeature().getValues(j));
                 featureBuilder.set(key, value);
             }
-        } else if (data.getDataTypeCase() == Geobuf.Data.DataTypeCase.FEATURE_COLLECTION) {
+        } else if (data.getDataTypeCase() == GeoBufProtos.Data.DataTypeCase.FEATURE_COLLECTION) {
             if (index >= data.getFeatureCollection().getFeaturesCount()) {
                 return null;
             }
-            Geobuf.Data.Feature feature = data.getFeatureCollection().getFeatures(index);
+            GeoBufProtos.Data.Feature feature = data.getFeatureCollection().getFeatures(index);
             featureBuilder.set(
                     featureBuilder.getFeatureType().getGeometryDescriptor().getLocalName(),
                     geobufGeometry.decode(feature.getGeometry()));
@@ -152,18 +152,18 @@ public class GeobufFeature {
         return featureBuilder.buildFeature(String.valueOf(index));
     }
 
-    protected Object getValue(Geobuf.Data.Value value) {
-        if (value.getValueTypeCase() == Geobuf.Data.Value.ValueTypeCase.STRING_VALUE) {
+    protected Object getValue(GeoBufProtos.Data.Value value) {
+        if (value.getValueTypeCase() == GeoBufProtos.Data.Value.ValueTypeCase.STRING_VALUE) {
             return value.getStringValue();
-        } else if (value.getValueTypeCase() == Geobuf.Data.Value.ValueTypeCase.POS_INT_VALUE) {
+        } else if (value.getValueTypeCase() == GeoBufProtos.Data.Value.ValueTypeCase.POS_INT_VALUE) {
             return value.getPosIntValue();
-        } else if (value.getValueTypeCase() == Geobuf.Data.Value.ValueTypeCase.NEG_INT_VALUE) {
+        } else if (value.getValueTypeCase() == GeoBufProtos.Data.Value.ValueTypeCase.NEG_INT_VALUE) {
             return value.getNegIntValue();
-        } else if (value.getValueTypeCase() == Geobuf.Data.Value.ValueTypeCase.DOUBLE_VALUE) {
+        } else if (value.getValueTypeCase() == GeoBufProtos.Data.Value.ValueTypeCase.DOUBLE_VALUE) {
             return value.getDoubleValue();
-        } else if (value.getValueTypeCase() == Geobuf.Data.Value.ValueTypeCase.BOOL_VALUE) {
+        } else if (value.getValueTypeCase() == GeoBufProtos.Data.Value.ValueTypeCase.BOOL_VALUE) {
             return value.getBoolValue();
-        } else if (value.getValueTypeCase() == Geobuf.Data.Value.ValueTypeCase.JSON_VALUE) {
+        } else if (value.getValueTypeCase() == GeoBufProtos.Data.Value.ValueTypeCase.JSON_VALUE) {
             return value.getJsonValue();
         } else {
             return null;

@@ -1,0 +1,85 @@
+buildscript {
+    repositories {
+        jcenter()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("org.jfrog.buildinfo:build-info-extractor-gradle:4.+")
+    }
+}
+
+configurations.all {
+    resolutionStrategy.cacheDynamicVersionsFor 5, 'minutes'
+}
+
+apply plugin: "java"
+apply plugin: "idea"
+apply plugin: "com.jfrog.artifactory"
+apply plugin: "maven-publish"
+
+apply from: "artifactory.gradle"
+
+group "jo.ban"
+version "20.0.4"
+archivesBaseName = "gt-geobuf"
+
+
+repositories {
+    maven { url "http://maven.geotoolkit.org/" }
+    mavenCentral()
+    maven {
+        credentials {
+            username = artifactory_username
+            password = artifactory_password
+        }
+        url artifactory_url
+    }
+    jcenter()
+    maven { url "http://repo.boundlessgeo.com/main" }
+    maven { url "http://maven.geomajas.org/" }
+}
+
+jar {
+    manifest {
+        attributes(
+          "Implementation-Title": project.name,
+          "Implementation-Version": version
+        )
+    }
+}
+
+dependencies {
+    compile("jo.ban:banjo-protos:4.+") {
+      exclude group: "io.grpc", module: "grpc-netty"
+    }
+    compile "org.geotools:gt-api:20-SNAPSHOT"
+    compile "org.geotools:gt-data:20-SNAPSHOT"
+    compile "org.geotools:gt-epsg-hsql:20-SNAPSHOT"
+    compile "com.google.protobuf:protobuf-java:3.5.1-1"
+    testCompile "junit:junit:4.11"
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            version version
+            from components.java
+        }
+    }
+}
+
+artifactory {
+    publish {
+        contextUrl = "https://ins-aue1-artifactory-01.bmasked.info/artifactory"
+        defaults {
+            publications('mavenJava')
+            publishArtifacts = true
+            publishPom = true // Publish generated POM files to Artifactory (true by default)
+        }
+    }
+    resolve {
+        contextUrl = "https://ins-aue1-artifactory-01.bmasked.info/artifactory"
+        repoKey = "gradle-dev"
+    }
+}
