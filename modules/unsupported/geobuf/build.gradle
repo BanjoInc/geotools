@@ -1,57 +1,66 @@
 buildscript {
     repositories {
+        maven { url "http://repo.jfrog.org/artifactory/gradle" }
         jcenter()
-        mavenCentral()
     }
-
     dependencies {
         classpath("org.jfrog.buildinfo:build-info-extractor-gradle:4.+")
     }
 }
 
+plugins {
+    id "java"
+    id "maven-publish"
+    id "eclipse"
+}
+
+apply plugin: "com.jfrog.artifactory"
+apply from: "artifactory.gradle"
+
 configurations.all {
     resolutionStrategy.cacheDynamicVersionsFor 5, 'minutes'
 }
 
-apply plugin: "java"
-apply plugin: "idea"
-apply plugin: "com.jfrog.artifactory"
-apply plugin: "maven-publish"
+configurations {
+    compileClasspath {
+        resolutionStrategy.activateDependencyLocking()
+    }
+}
 
-apply from: "artifactory.gradle"
-
-group "jo.ban"
-version "20.0.4"
+group = "jo.ban"
+version = "21.0.0"
 archivesBaseName = "gt-geobuf"
 
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+jar {
+    manifest {
+        attributes(
+            "Implementation-Title": project.name,
+            "Implementation-Version": version
+        )
+    }
+}
 
 repositories {
     maven { url "http://maven.geotoolkit.org/" }
     mavenCentral()
     maven {
-        credentials {
-            username = artifactory_username
-            password = artifactory_password
-        }
-        url artifactory_url
+      url artifactory_url
+      credentials {
+        username = artifactory_username
+        password = artifactory_password
+      }
     }
     jcenter()
     maven { url "http://repo.boundlessgeo.com/main" }
     maven { url "http://maven.geomajas.org/" }
 }
 
-jar {
-    manifest {
-        attributes(
-          "Implementation-Title": project.name,
-          "Implementation-Version": version
-        )
-    }
-}
-
 dependencies {
     compile("jo.ban:banjo-protos:4.+") {
-      exclude group: "io.grpc", module: "grpc-netty"
+        exclude group: "io.grpc", module: "grpc-netty"
     }
     compile "org.geotools:gt-api:20-SNAPSHOT"
     compile "org.geotools:gt-data:20-SNAPSHOT"
@@ -70,16 +79,25 @@ publishing {
 }
 
 artifactory {
+    contextUrl = artifactory_context_url
+
     publish {
-        contextUrl = "https://ins-aue1-artifactory-01.bmasked.info/artifactory"
+        repository {
+            repoKey = 'gradle-dev-local'
+            username = artifactory_username
+            password = artifactory_password
+            maven = true
+            ivy {
+                ivyLayout = '[organization]/[module]/ivy-[revision].xml'
+                artifactLayout = '[organization]/[module]/[revision]/[module]-[revision](-[classifier]).[ext]'
+                mavenCompatible = true
+            }
+        }
         defaults {
             publications('mavenJava')
             publishArtifacts = true
-            publishPom = true // Publish generated POM files to Artifactory (true by default)
+            publishPom = false
+            publishIvy = true
         }
-    }
-    resolve {
-        contextUrl = "https://ins-aue1-artifactory-01.bmasked.info/artifactory"
-        repoKey = "gradle-dev"
     }
 }
