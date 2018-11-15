@@ -16,6 +16,8 @@
  */
 package org.geotools.data.geobuf;
 
+import com.google.common.collect.Lists;
+import jo.ban.proto.GeoBufProtos;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -164,7 +166,15 @@ public class GeobufGeometry {
         } else if (g.getType() == Type.LINESTRING) {
             return geometryFactory.createLineString(getAllCoordinates(g));
         } else if (g.getType() == Type.POLYGON) {
-            return getPolygon(g, g.getLengthsCount(), g.getLengthsList(), 0);
+            int ringsCount = g.getLengthsCount();
+            if (ringsCount == 0) {
+                ringsCount = 1;
+            }
+            List<Integer> polygonLengths = g.getLengthsList();
+            if (polygonLengths.isEmpty() && getCoordinates(g).size() > 0) {
+                polygonLengths = Lists.newArrayList(getCoordinates(g).get(0).length);
+            }
+            return getPolygon(g, ringsCount, polygonLengths, 0);
         } else if (g.getType() == Type.MULTIPOINT) {
             Coordinate[] coords = getAllCoordinates(g);
             return geometryFactory.createMultiPoint(coords);
@@ -185,7 +195,8 @@ public class GeobufGeometry {
                 List<Integer> polygonLengths = g.getLengthsList()
                     .subList(lengthPosition, lengthPosition + numberOfRings);
                 polygons[p] = getPolygon(g, numberOfRings, polygonLengths, start);
-                start += polygonLengths.stream().reduce(0, Integer::sum);
+                start += polygonLengths.stream().reduce(0, Integer::sum) * dimension;
+                lengthPosition += numberOfRings;
             }
             return geometryFactory.createMultiPolygon(polygons);
         } else if (g.getType() == Type.GEOMETRYCOLLECTION) {
@@ -202,7 +213,7 @@ public class GeobufGeometry {
         int start = offset;
         int lengthPosition = 0;
         for (int r = 0; r < ringsCount; r++) {
-            int numberOfCoordinates = polygonLengths.get(lengthPosition);
+            int numberOfCoordinates = polygonLengths.get(lengthPosition++);
             int end = start + numberOfCoordinates * dimension;
             Coordinate[] coords = getCoordinates(geometry, start, end);
             rings[r] = geometryFactory.createLinearRing(ensureIsRing(coords));
