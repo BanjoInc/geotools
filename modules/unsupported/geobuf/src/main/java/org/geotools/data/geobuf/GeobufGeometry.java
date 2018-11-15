@@ -16,6 +16,7 @@
  */
 package org.geotools.data.geobuf;
 
+import com.google.common.collect.Lists;
 import jo.ban.proto.GeoBufProtos;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,6 +24,8 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import jo.ban.proto.GeoBufProtos.Data;
+import jo.ban.proto.GeoBufProtos.Data.Geometry.Type;
 import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateArrays;
@@ -106,8 +109,13 @@ public class GeobufGeometry {
         } else if (geometry instanceof Polygon) {
             Polygon polygon = (Polygon) geometry;
             builder.setType(GeoBufProtos.Data.Geometry.Type.POLYGON);
-            Coordinate[] coords = polygon.getCoordinates();
-            addCoords(builder, coords);
+            builder.addLengths(polygon.getExteriorRing().getCoordinates().length);
+            addCoords(builder, polygon.getExteriorRing().getCoordinates());
+            for (int j = 0; j < polygon.getNumInteriorRing(); j++) {
+                LinearRing ring = (LinearRing) polygon.getInteriorRingN(j);
+                builder.addLengths(ring.getCoordinates().length);
+                addCoords(builder, ring.getCoordinates());
+            }
         } else if (geometry instanceof MultiPoint) {
             MultiPoint multiPoint = (MultiPoint) geometry;
             builder.setType(GeoBufProtos.Data.Geometry.Type.MULTIPOINT);
@@ -162,70 +170,82 @@ public class GeobufGeometry {
         }
     }
 
-    public Geometry decode(GeoBufProtos.Data.Geometry g) {
-        if (g.getType() == GeoBufProtos.Data.Geometry.Type.POINT) {
+    public Geometry decode(Data.Geometry g) {
+        if (g.getType() == Type.POINT) {
             return geometryFactory.createPoint(getAllCoordinates(g)[0]);
-        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.LINESTRING) {
+        } else if (g.getType() == Type.LINESTRING) {
             return geometryFactory.createLineString(getAllCoordinates(g));
-        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.POLYGON) {
-            Coordinate[] coords = getAllCoordinates(g);
-            if (!CoordinateArrays.isRing(coords)) {
-                Coordinate[] closedCoords = new Coordinate[coords.length + 1];
-                CoordinateArrays.copyDeep(coords, 0, closedCoords, 0, coords.length);
-                closedCoords[closedCoords.length - 1] = coords[0];
-                coords = closedCoords;
+        } else if (g.getType() == Type.POLYGON) {
+            int ringsCount = g.getLengthsCount();
+            if (ringsCount == 0) {
+                ringsCount = 1;
             }
-            LinearRing shell = geometryFactory.createLinearRing(coords);
-            LinearRing[] holes = new LinearRing[0];
-            return geometryFactory.createPolygon(shell, holes);
-        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.MULTIPOINT) {
+            List<Integer> polygonLengths = g.getLengthsList();
+            if (polygonLengths.isEmpty() && getCoordinates(g).size() > 0) {
+                polygonLengths = Lists.newArrayList(getCoordinates(g).get(0).length);
+            }
+            return getPolygon(g, ringsCount, polygonLengths, 0);
+        } else if (g.getType() == Type.MULTIPOINT) {
             Coordinate[] coords = getAllCoordinates(g);
             return geometryFactory.createMultiPoint(coords);
-        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.MULTILINESTRING) {
+        } else if (g.getType() == Type.MULTILINESTRING) {
             List<Coordinate[]> listOfCoordinates = getCoordinates(g);
             LineString[] lines = new LineString[listOfCoordinates.size()];
             for (int i = 0; i < listOfCoordinates.size(); i++) {
                 lines[i] = geometryFactory.createLineString(listOfCoordinates.get(i));
             }
             return geometryFactory.createMultiLineString(lines);
-        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.MULTIPOLYGON) {
+        } else if (g.getType() == Type.MULTIPOLYGON) {
             int lengthPosition = 0;
-            int numberOfPolygons = g.getLengths(lengthPosition);
-            lengthPosition++;
+            int numberOfPolygons = g.getLengths(lengthPosition++);
             Polygon[] polygons = new Polygon[numberOfPolygons];
             int start = 0;
             for (int p = 0; p < numberOfPolygons; p++) {
-                int numberOfRings = g.getLengths(lengthPosition);
-                lengthPosition++;
-                LinearRing[] rings = new LinearRing[numberOfRings];
-                for (int r = 0; r < numberOfRings; r++) {
-                    int numberOfCoordinates = g.getLengths(lengthPosition);
-                    lengthPosition++;
-                    int end = start + numberOfCoordinates * dimension;
-                    Coordinate[] coords = getCoordinates(g, start, end);
-                    if (!CoordinateArrays.isRing(coords)) {
-                        Coordinate[] closedCoords = new Coordinate[coords.length + 1];
-                        CoordinateArrays.copyDeep(coords, 0, closedCoords, 0, coords.length);
-                        closedCoords[closedCoords.length - 1] = coords[0];
-                        coords = closedCoords;
-                    }
-                    rings[r] = geometryFactory.createLinearRing(coords);
-                    start = end;
-                }
-                if (rings.length > 1) {
-                    polygons[p] =
-                            geometryFactory.createPolygon(
-                                    rings[0], Arrays.copyOfRange(rings, 1, rings.length));
-                } else {
-                    polygons[p] = geometryFactory.createPolygon(rings[0]);
-                }
+                int numberOfRings = g.getLengths(lengthPosition++);
+                List<Integer> polygonLengths = g.getLengthsList()
+                    .subList(lengthPosition, lengthPosition + numberOfRings);
+                polygons[p] = getPolygon(g, numberOfRings, polygonLengths, start);
+                start += polygonLengths.stream().reduce(0, Integer::sum) * dimension;
+                lengthPosition += numberOfRings;
             }
             return geometryFactory.createMultiPolygon(polygons);
-        } else if (g.getType() == GeoBufProtos.Data.Geometry.Type.GEOMETRYCOLLECTION) {
+        } else if (g.getType() == Type.GEOMETRYCOLLECTION) {
             List<Geometry> geoms = getGeometries(g);
             return geometryFactory.createGeometryCollection(geoms.toArray(new Geometry[] {}));
         } else {
             return null;
+        }
+    }
+
+    private Polygon getPolygon(Data.Geometry geometry, int ringsCount,
+        List<Integer> polygonLengths, int offset) {
+        LinearRing[] rings = new LinearRing[ringsCount];
+        int start = offset;
+        int lengthPosition = 0;
+        for (int r = 0; r < ringsCount; r++) {
+            int numberOfCoordinates = polygonLengths.get(lengthPosition++);
+            int end = start + numberOfCoordinates * dimension;
+            Coordinate[] coords = getCoordinates(geometry, start, end);
+            rings[r] = geometryFactory.createLinearRing(ensureIsRing(coords));
+            start = end;
+        }
+
+        if (rings.length > 1) {
+            return geometryFactory.createPolygon(
+                    rings[0], Arrays.copyOfRange(rings, 1, rings.length));
+        } else {
+            return geometryFactory.createPolygon(rings[0]);
+        }
+    }
+
+    private Coordinate[] ensureIsRing(Coordinate[] coordinates) {
+        if (CoordinateArrays.isRing(coordinates)) {
+            return coordinates;
+        } else {
+            Coordinate[] closedCoords = new Coordinate[coordinates.length + 1];
+            CoordinateArrays.copyDeep(coordinates, 0, closedCoords, 0, coordinates.length);
+            closedCoords[closedCoords.length - 1] = coordinates[0];
+            return closedCoords;
         }
     }
 
