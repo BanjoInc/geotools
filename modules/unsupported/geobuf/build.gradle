@@ -28,7 +28,7 @@ configurations {
 }
 
 group = "jo.ban"
-version = "21.0.3"
+version = "21.0.3-experimental-3"
 archivesBaseName = "gt-geobuf"
 
 sourceCompatibility = 1.8
@@ -52,6 +52,13 @@ repositories {
         username = artifactory_username
         password = artifactory_password
       }
+    }
+    maven {
+        url artifactory_url_dev
+        credentials {
+            username = artifactory_username
+            password = artifactory_password
+        }
     }
     jcenter()
     maven { url "http://maven.geomajas.org/" }
