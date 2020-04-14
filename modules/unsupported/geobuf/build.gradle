@@ -28,7 +28,7 @@ configurations {
 }
 
 group = "jo.ban"
-version = "21.0.3-experimental-3"
+version = "21.0.5"
 archivesBaseName = "gt-geobuf"
 
 sourceCompatibility = 1.8
