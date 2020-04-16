@@ -28,7 +28,7 @@ configurations {
 }
 
 group = "jo.ban"
-version = "21.0.1"
+version = "21.0.5"
 archivesBaseName = "gt-geobuf"
 
 sourceCompatibility = 1.8
@@ -53,8 +53,14 @@ repositories {
         password = artifactory_password
       }
     }
+    maven {
+        url artifactory_url_dev
+        credentials {
+            username = artifactory_username
+            password = artifactory_password
+        }
+    }
     jcenter()
-    maven { url "http://repo.boundlessgeo.com/main" }
     maven { url "http://maven.geomajas.org/" }
 }
 
@@ -62,10 +68,10 @@ dependencies {
     compile("jo.ban:banjo-protos:4.+") {
         exclude group: "io.grpc", module: "grpc-netty"
     }
-    compile "org.geotools:gt-api:20-SNAPSHOT"
-    compile "org.geotools:gt-data:20-SNAPSHOT"
-    compile "org.geotools:gt-epsg-hsql:20-SNAPSHOT"
-    compile "com.google.protobuf:protobuf-java:3.5.1-1"
+    compile "org.geotools:gt-api:20.3"
+    compile "org.geotools:gt-data:20.3"
+    compile "org.geotools:gt-epsg-hsql:20.3"
+    compile "com.google.protobuf:protobuf-java:3.5.1"
     testCompile "junit:junit:4.11"
 }
 
